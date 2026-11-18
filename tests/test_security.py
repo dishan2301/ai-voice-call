@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+from unittest.mock import Mock
 
 from httpx import ASGITransport, AsyncClient
 from fastapi.responses import HTMLResponse
@@ -13,6 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_host_and_origin_boundaries_and_security_headers(monkeypatch) -> None:
     from app.core.config import get_settings
+    from app.services.speech_service import tts_provider_dependency
+
+    # This test checks HTTP boundaries, independently of the host speech tools.
+    speech = Mock()
+    monkeypatch.setitem(app.dependency_overrides, tts_provider_dependency, lambda: speech)
     app_settings = get_settings().model_copy(update={
         "allowed_hosts": ["test", "phone.example"],
         "phone_install_code": "synthetic-pairing-code", "phone_api_token": "synthetic-api-token",
@@ -83,6 +89,7 @@ def test_host_and_origin_boundaries_and_security_headers(monkeypatch) -> None:
     assert cookie_brief.status_code in {200, 404}
     assert cookie_recent.status_code == 200
     assert browser_form.status_code == 303
+    speech.stop.assert_called_once_with()
 
 
 def test_security_middleware_returns_application_errors_without_stalling(monkeypatch) -> None:
