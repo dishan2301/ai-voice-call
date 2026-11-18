@@ -37,3 +37,46 @@ def test_phone_call_page_loads_without_private_configuration():
     response=TestClient(app).get('/talk')
     assert response.status_code==200
     assert 'type="password"' in response.text
+
+
+def test_owned_google_session_starts_gmail_voice(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    context = SimpleNamespace(provider="gmail", legacy_local=False, session_id="owned")
+    seen = []
+
+    async def owner(*args):
+        return context
+
+    class FakeGmail:
+        def __init__(self, settings, voice, emit, clear, mailbox):
+            seen.append(mailbox)
+        async def start(self): pass
+        async def receive(self): await asyncio.Event().wait()
+        async def close(self): pass
+
+    monkeypatch.setattr(browser_voice, "require_mailbox_context", owner)
+    monkeypatch.setattr(browser_voice, "HostedGmailLive", FakeGmail)
+    with TestClient(app).websocket_connect("/talk/ws", headers={
+        "origin": "https://testserver", "cookie": "morning_mail_session=synthetic"
+    }) as ws:
+        ws.send_json({"sample_rate": 48000})
+        assert ws.receive_json()["mail_connected"] is True
+        ws.send_text("stop")
+    assert seen == [context]
+    assert not browser_voice.active
+
+
+def test_hosted_metadata_uses_only_individual_authorized_gets():
+    from unittest.mock import Mock
+    from app.email.gmail import GmailProvider
+
+    service = Mock()
+    service._http.supports_batch = False
+    api = service.users.return_value.messages.return_value
+    api.list.return_value.execute.return_value = {"messages": [{"id": "example"}]}
+    api.get.return_value.execute.return_value = {"internalDate": "1780000000000"}
+    assert GmailProvider(service).search_metadata("", 5, inbox=True)["messages"][0]["id"] == "example"
+    assert api.get.call_args.kwargs["format"] == "metadata"
+    service.new_batch_http_request.assert_not_called()

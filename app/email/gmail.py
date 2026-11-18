@@ -466,13 +466,25 @@ class GmailProvider(EmailProvider):
                     "unread": "UNREAD" in raw.get("labelIds", []),
                 }
 
-            batch = self.service.new_batch_http_request(callback=collect)
-            for message_id in ids:
-                batch.add(messages.get(userId="me", id=message_id, format="metadata",
-                                       metadataHeaders=["From", "Subject"],
-                                       fields="id,internalDate,labelIds,snippet,payload(headers)"),
-                          request_id=message_id)
-            batch.execute()
+            def metadata_request(message_id):
+                return messages.get(userId="me", id=message_id, format="metadata",
+                                    metadataHeaders=["From", "Subject"],
+                                    fields="id,internalDate,labelIds,snippet,payload(headers)")
+
+            if getattr(getattr(self.service, "_http", None), "supports_batch", None) is False:
+                # Hosted Gmail authorizes individual GETs; preserve that boundary.
+                for message_id in ids:
+                    try:
+                        raw = metadata_request(message_id).execute()
+                    except HttpError as exc:
+                        collect(message_id, None, exc)
+                    else:
+                        collect(message_id, raw, None)
+            else:
+                batch = self.service.new_batch_http_request(callback=collect)
+                for message_id in ids:
+                    batch.add(metadata_request(message_id), request_id=message_id)
+                batch.execute()
         return {"messages": [rows[mid] for mid in ids if mid in rows],
                 "complete": not page.get("nextPageToken") and len(rows) == len(ids)}
 

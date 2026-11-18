@@ -13,6 +13,12 @@ from app.services.mailbox_credentials import MailboxCredentialStore, MailboxCred
 
 
 class MailboxGmailHttp:
+    supports_batch = False
+
+    def close(self):
+        # Each request closes its own HTTP client.
+        pass
+
     def __init__(self, settings, context, session_factory):
         if settings.deployment_mode != "hosted" or context.legacy_local or context.provider != "gmail":
             raise GmailConfigurationError("An owned hosted Gmail connection is required")

@@ -14,7 +14,7 @@ start.onclick=async()=>{
    if(typeof event.data==='string'){
     const message=JSON.parse(event.data);
     if(message.type==='ready'){
-     status.textContent=message.mail_connected?'Connected to Outlook. Ask your question.':'Connected. Say hello! Outlook is not connected for this test.';
+     status.textContent=message.mail_connected?'Connected to your mailbox. Ask your question.':'Connected. Say hello! No mailbox is connected for this test.';
      await context.audioWorklet.addModule('/voice-capture.js');
      source=context.createMediaStreamSource(stream);capture=new AudioWorkletNode(context,'voice-capture');
      mutedGain=context.createGain();mutedGain.gain.value=0;

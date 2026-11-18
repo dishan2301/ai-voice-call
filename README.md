@@ -54,3 +54,19 @@ Cloud Outlook needs its own owner sign-in: configure `MICROSOFT_ENABLED=true`, t
 The free preview still loses its database on restart. This is a short-lived test setup, not a durable mailbox deployment. The app does not silently reuse a laptop session or enable Outlook sending.
 
 For the separate Linphone service, see [Call Morning Mail from Linphone](docs/SIP_GMAIL_LAN.md).
+
+### Gmail on the browser call page
+
+Enable the Gmail API in your Google Cloud project and create a **Web application**
+OAuth client. Add the exact HTTPS callback `https://YOUR-RENDER-HOST/auth/google/callback`.
+For a Google app in Testing, add your Gmail account as a test user. In Render
+**Environment**, set `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_WEB_CLIENT_SECRET`,
+`GOOGLE_WEB_REDIRECT_URI` (the same callback), and `HOSTED_GOOGLE_ALLOWED_EMAILS`
+(your Gmail address). Keep `GEMINI_API_KEY` configured. If
+`PROVIDER_CREDENTIAL_KEY_BASE64` is absent, generate it locally with
+`openssl rand -base64 32` and put it directly in Render. Keep any existing key.
+These values belong in Render, not in the source checkout.
+
+After redeploy, open `/talk`, choose **Sign in with Google for Gmail**, grant
+read-only access, then return to `/talk` and start a call. On free Render,
+a reboot or spin-down can erase the mailbox session and require signing in again.

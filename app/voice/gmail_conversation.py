@@ -280,7 +280,8 @@ class GmailConversationLive(GeminiLive):
 
     @staticmethod
     def _auth_error(exc):
-        return getattr(getattr(exc, "resp", None), "status", None) in (401, 403)
+        return (getattr(exc, "status_code", None) or
+                getattr(getattr(exc, "resp", None), "status", None)) in (401, 403)
 
     async def audio(self, pcm):
         if not self.closed and not self.connecting and not self.tools.closed:
